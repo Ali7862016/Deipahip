@@ -1,0 +1,40 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Dropship Auto</title>
+<style>
+:root{--bg:#f6f7f4;--ink:#1d2b2a;--mut:#667;--acc:#0f766e;--line:#dde1db;--card:#fff}
+@media(prefers-color-scheme:dark){:root{--bg:#121a19;--ink:#e6efed;--mut:#9ab;--acc:#2dd4bf;--line:#26332f;--card:#18231f}}
+body{margin:0;font:15px/1.5 system-ui,sans-serif;background:var(--bg);color:var(--ink);padding:16px;max-width:900px;margin:auto}
+h1{font-size:22px;margin:8px 0}h2{font-size:16px;margin:24px 0 8px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px;overflow-x:auto}
+table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+button{background:var(--acc);color:var(--bg);border:0;border-radius:6px;padding:8px 12px;font:inherit;cursor:pointer}
+input{width:70px;padding:6px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink)}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:end}.mut{color:var(--mut)}
+</style></head><body>
+<h1>Dropship Auto</h1>
+<p class="mut" id="sum"></p>
+<h2>Pricing rules</h2>
+<div class="card row">
+ <label>Markup %<br><input id="m"></label><label>Min margin $<br><input id="g"></label>
+ <button onclick="saveRules()">Save rules</button><button onclick="syncNow()">Sync supplier now</button>
+</div>
+<h2>Products</h2><div class="card"><table id="p"></table></div>
+<h2>Orders</h2><div class="card"><table id="o"></table></div>
+<script>
+const $=id=>document.getElementById(id);
+const api=(u,b)=>fetch(u,b&&{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)}).then(r=>r.json());
+async function load(){
+ const s=await api("/api/state");
+ $("m").value=s.rules.markupPct;$("g").value=s.rules.minMargin;
+ const rev=s.orders.reduce((a,o)=>a+o.total,0),prof=s.orders.reduce((a,o)=>a+o.total-o.cost,0);
+ $("sum").textContent=`${s.orders.length} orders, $${rev.toFixed(2)} revenue, $${prof.toFixed(2)} profit`;
+ $("p").innerHTML="<tr><th>SKU<th>Title<th>Cost<th>Price<th>Stock<th>Status<th></tr>"+s.products.map(p=>
+  `<tr><td>${p.sku}<td>${p.title}<td>$${p.cost}<td>$${p.price}<td>${p.stock}<td>${p.active?"Live":"Hidden"}<td>${p.active?`<button onclick="order('${p.sku}')">Test order</button>`:""}</tr>`).join("");
+ $("o").innerHTML="<tr><th>ID<th>SKU<th>Total<th>Status<th>Tracking</tr>"+(s.orders.slice().reverse().map(o=>
+  `<tr><td>${o.id}<td>${o.sku}<td>$${o.total}<td>${o.status}<td>${o.tracking||""}</tr>`).join("")||"<tr><td colspan=5 class=mut>No orders yet. Place a test order above.</tr>");
+}
+const saveRules=async()=>{await api("/api/rules",{markupPct:+$("m").value,minMargin:+$("g").value});load()};
+const syncNow=async()=>{await api("/api/sync",{});load()};
+const order=async sku=>{await api("/api/orders",{sku,qty:1,customer:{name:"Test"}});load()};
+load();setInterval(load,5000);
+</script></body></html>
