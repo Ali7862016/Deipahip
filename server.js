@@ -3,7 +3,9 @@ import fs from "fs";
 import { MockSupplier } from "./suppliers.js";
 
 const supplier = new MockSupplier();
-const DB = (process.env.DATA_DIR || ".") + "/db.json";
+const DB = const DIR = process.env.DATA_DIR || ".";
+try { fs.mkdirSync(DIR, { recursive: true }); } catch {}
+const DB = DIR + "/db.json";
 const db = fs.existsSync(DB)
   ? JSON.parse(fs.readFileSync(DB))
   : { rules: { markupPct: 60, minMargin: 3, roundTo: 0.99 }, products: [], orders: [] };
